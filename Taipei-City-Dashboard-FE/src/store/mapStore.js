@@ -195,6 +195,7 @@ export const useMapStore = defineStore("map", {
 				"bike_orange",
 				"bike_red",
 				"cctv",
+				"house"
 			];
 			images.forEach((element) => {
 				this.map.loadImage(
@@ -354,7 +355,7 @@ export const useMapStore = defineStore("map", {
 							`https://citydashboard.taipei/geo_server/gwc/service/tms/1.0.0/taipei_vioc:${map_config.index}@EPSG:900913@pbf/{z}/{x}/{y}.pbf`,
 						],
 					});
-		
+
 					// 監聽錯誤
 					this.map.on('error', (e) => {
 						if (e.sourceId === `${map_config.layerId}-source`) {
@@ -370,7 +371,7 @@ export const useMapStore = defineStore("map", {
 							);
 						}
 					});
-		
+
 					// 監聽源加載完成
 					const sourceLoaded = new Promise((resolve, reject) => {
 						const checkSource = (e) => {
@@ -386,22 +387,22 @@ export const useMapStore = defineStore("map", {
 								}
 							}
 						};
-						
+
 						this.map.on('sourcedata', checkSource);
-						
+
 						// 設置超時
 						setTimeout(() => {
 							this.map.off('sourcedata', checkSource);
 							reject(new Error('Source load timeout'));
 						}, 10000);
 					});
-		
+
 					// 等待源加載完成後添加圖層
 					await sourceLoaded;
 					this.addMapLayer(map_config);
 
 
-		
+
 				} catch (error) {
 					console.error('Failed to add source:', error);
 					// 清理已添加的源（如果存在）
@@ -423,12 +424,12 @@ export const useMapStore = defineStore("map", {
 			if (map_config.icon) {
 				extra_paint_configs = {
 					...maplayerCommonPaint[
-						`${map_config.type}-${map_config.icon}`
+					`${map_config.type}-${map_config.icon}`
 					],
 				};
 				extra_layout_configs = {
 					...maplayerCommonLayout[
-						`${map_config.type}-${map_config.icon}`
+					`${map_config.type}-${map_config.icon}`
 					],
 				};
 			}
@@ -436,17 +437,23 @@ export const useMapStore = defineStore("map", {
 				extra_paint_configs = {
 					...extra_paint_configs,
 					...maplayerCommonPaint[
-						`${map_config.type}-${map_config.size}`
+					`${map_config.type}-${map_config.size}`
 					],
 				};
 				extra_layout_configs = {
 					...extra_layout_configs,
 					...maplayerCommonLayout[
-						`${map_config.type}-${map_config.size}`
+					`${map_config.type}-${map_config.size}`
 					],
 				};
 			}
 			this.loadingLayers.push("rendering");
+
+			const bearlayout = {
+				'icon-image': 'house',
+				'icon-size': 0.05 // 可根據圖片大小調整
+			}
+
 			this.map.addLayer({
 				id: map_config.layerId,
 				type: map_config.type,
@@ -460,6 +467,7 @@ export const useMapStore = defineStore("map", {
 				layout: {
 					...maplayerCommonLayout[`${map_config.type}`],
 					...extra_layout_configs,
+					...(bearlayout)
 				},
 				source: `${map_config.layerId}-source`,
 			});
@@ -501,7 +509,7 @@ export const useMapStore = defineStore("map", {
 				getTargetColor: () => {
 					const color = hexToRGB(
 						paintSettings["arc-color"][1] ||
-							paintSettings["arc-color"][0]
+						paintSettings["arc-color"][0]
 					);
 					return [
 						parseInt(color.r, 16),
@@ -540,15 +548,15 @@ export const useMapStore = defineStore("map", {
 			const layers = Object.keys(this.deckGlLayer).map((index) => {
 				const l = this.deckGlLayer[index];
 				switch (l.type) {
-				case "ArcLayer":
-					return new ArcLayer(l.config);
-				case "AnimatedArcLayer":
-					return new AnimatedArcLayer({
-						...l.config,
-						coef: this.step / 1000,
-					});
-				default:
-					break;
+					case "ArcLayer":
+						return new ArcLayer(l.config);
+					case "AnimatedArcLayer":
+						return new AnimatedArcLayer({
+							...l.config,
+							coef: this.step / 1000,
+						});
+					default:
+						break;
 				}
 			});
 			this.overlay.setProps({
@@ -827,8 +835,8 @@ export const useMapStore = defineStore("map", {
 					continue;
 
 				// format properties
-				const feature = {...clickFeatureDatas[i]};
-				feature.properties = {...feature.properties};
+				const feature = { ...clickFeatureDatas[i] };
+				feature.properties = { ...feature.properties };
 				Object.keys(feature.properties).forEach(key => {
 					feature.properties[key] = formatValue(feature.properties[key], key);
 				});
@@ -1069,9 +1077,9 @@ export const useMapStore = defineStore("map", {
 						) {
 							return (
 								d.properties[map_filter.byParam.xParam] ===
-									xParam &&
+								xParam &&
 								d.properties[map_filter.byParam.yParam] ===
-									yParam
+								yParam
 							);
 						} else if (map_filter.byParam.yParam && yParam) {
 							return (
@@ -1262,11 +1270,9 @@ export const useMapStore = defineStore("map", {
 				);
 			} else {
 				const res = await axios.get(
-					`${
-						location.origin
-					}/geo_server/taipei_vioc/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=taipei_vioc%3A${
-						this.mapConfigs[this.currentVisibleLayers[targetLayer]]
-							.index
+					`${location.origin
+					}/geo_server/taipei_vioc/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=taipei_vioc%3A${this.mapConfigs[this.currentVisibleLayers[targetLayer]]
+						.index
 					}&maxFeatures=1000000&outputFormat=application%2Fjson`
 				);
 
