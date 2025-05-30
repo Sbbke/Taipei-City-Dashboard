@@ -195,7 +195,10 @@ export const useMapStore = defineStore("map", {
 				"bike_orange",
 				"bike_red",
 				"cctv",
-				"house"
+				"rental",
+				"hospital",
+				"library",
+				"shopping_district"
 			];
 			images.forEach((element) => {
 				this.map.loadImage(
@@ -449,11 +452,6 @@ export const useMapStore = defineStore("map", {
 			}
 			this.loadingLayers.push("rendering");
 
-			const bearlayout = {
-				'icon-image': 'house',
-				'icon-size': 0.05 // 可根據圖片大小調整
-			}
-
 			this.map.addLayer({
 				id: map_config.layerId,
 				type: map_config.type,
@@ -467,7 +465,6 @@ export const useMapStore = defineStore("map", {
 				layout: {
 					...maplayerCommonLayout[`${map_config.type}`],
 					...extra_layout_configs,
-					...(bearlayout)
 				},
 				source: `${map_config.layerId}-source`,
 			});
