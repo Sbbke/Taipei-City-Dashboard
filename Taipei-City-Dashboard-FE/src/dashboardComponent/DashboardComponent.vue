@@ -20,6 +20,8 @@ import RadarChart from "./components/RadarChart.vue";
 import TimelineSeparateChart from "./components/TimelineSeparateChart.vue";
 import TimelineStackedChart from "./components/TimelineStackedChart.vue";
 import MapLegend from "./components/MapLegend.vue";
+import CityChart from "./components/CityChart.vue";
+
 import MetroChart from "./components/MetroChart.vue";
 import HeatmapChart from "./components/HeatmapChart.vue";
 import PolarAreaChart from "./components/PolarAreaChart.vue";
@@ -88,7 +90,8 @@ const emits = defineEmits([
 	"clearByParamFilter",
 	"clearByLayerFilter",
 	"fly",
-	"changeCity"
+	"changeCity",
+	"setByLayer"
 ]);
 
 const activeChart = ref(props.config.chart_config.types[0]);
@@ -188,6 +191,8 @@ function returnChartComponent(name, svg) {
 		return svg ? BarChartSvg : BarChart;
 	case "MapLegend":
 		return svg ? MapLegendSvg : MapLegend;
+	case "CityChart":
+		return svg ? MapLegendSvg: CityChart;
 	case "MetroChart":
 		return svg ? MetroChartSvg : MetroChart;
 	case "TimelineSeparateChart":
@@ -441,6 +446,7 @@ function returnChartComponent(name, svg) {
           (map_config) => $emit('clearByLayerFilter', map_config)
         "
         @fly="(location) => $emit('fly', location)"
+		@set-by-layer="(map_config, selectItems) => $emit('setByLayer', map_config,selectItems)"
       />
     </div>
     <div
