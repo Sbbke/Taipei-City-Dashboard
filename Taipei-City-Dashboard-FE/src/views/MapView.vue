@@ -143,6 +143,7 @@ function shouldDisable(map_config) {
               mapStore.filterByLayer(map_config, layer);
             }
           "
+		  @set-by-layer="(map_config, selectItems) => mapStore.setByLayer(map_config,selectItems)"
           @clear-by-param-filter="
             (map_config) => {
               mapStore.clearByParamFilter(map_config);
@@ -222,6 +223,7 @@ function shouldDisable(map_config) {
               mapStore.filterByLayer(map_config, layer);
             }
           "
+		  @set-by-layer="(map_config, selectItems) => mapStore.setByLayer(map_config,selectItems)"
           @clear-by-param-filter="
             (map_config) => {
               mapStore.clearByParamFilter(map_config);
@@ -301,6 +303,7 @@ function shouldDisable(map_config) {
               mapStore.filterByLayer(map_config, layer);
             }
           "
+		  @set-by-layer="(map_config, selectItems) => mapStore.setByLayer(map_config,selectItems)"
           @clear-by-param-filter="
             (map_config) => {
               mapStore.clearByParamFilter(map_config);

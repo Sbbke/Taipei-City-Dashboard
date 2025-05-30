@@ -1149,6 +1149,32 @@ export const useMapStore = defineStore("map", {
 				}
 			});
 		},
+		setByLayer(map_configs, selectedItems = []) {
+			console.log("[setByLayer]", map_configs, selectedItems)
+			const dialogStore = useDialogStore();
+			// If there are layers loading, don't filter
+			if (this.loadingLayers.length > 0) return;
+			if (!this.map || dialogStore.dialogs.moreInfo) {
+				return;
+			}
+			map_configs.map((map_config) => {
+				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
+				console.log("map_config.title", map_config.title)
+				if (!selectedItems.includes(map_config.title)) {
+					this.map.setLayoutProperty(
+						mapLayerId,
+						"visibility",
+						"none"
+					);
+				} else {
+					this.map.setLayoutProperty(
+						mapLayerId,
+						"visibility",
+						"visible"
+					);
+				}
+			});
+		},
 		// 3. Remove any property filters on a map layer
 		clearByParamFilter(map_configs) {
 			const dialogStore = useDialogStore();
