@@ -22,9 +22,8 @@ import { useAuthStore } from "../../store/authStore";
 import { useMapStore } from "../../store/mapStore";
 import { useDialogStore } from "../../store/dialogStore";
 import AddCustomMarker from "../../components/dialogs/AddCustomMaker.vue";
-import { circle } from "@turf/turf";
+import { circle, distance, midpoint } from "@turf/turf";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
-
 const MAPBOXTOKEN = import.meta.env.VITE_MAPBOXTOKEN;
 
 const authStore = useAuthStore();
@@ -49,9 +48,6 @@ const emits = defineEmits([
 	"fly",
 	"setByLayer",
 ]);
-
-loadAllPersonalMarkers();
-// removeAllPersonalMarkers();
 
 const geocoder = new MapboxGeocoder({
 	accessToken: mapboxgl.accessToken ?? MAPBOXTOKEN,
@@ -96,8 +92,8 @@ function returnIcon(name) {
 
 const getLifeAreaData = () => {
 	const center = [
-		mapStore.viewPoints[0].center_x,
-		mapStore.viewPoints[0].center_y,
+		mapStore.personalMarkerMap["important"].lng,
+		mapStore.personalMarkerMap["important"].lat,
 	];
 	// console.log("center",center)
 	const area = circle(center, 2, {
@@ -151,25 +147,6 @@ const drawLifeArea = () => {
 	}
 };
 
-onMounted(() => {
-	console.log("[onMounted] viewPoints", mapStore.viewPoints);
-	clearLifeArea();
-	if (mapStore.viewPoints?.length > 0) {
-		drawLifeArea();
-	}
-});
-
-watch(
-	() => JSON.stringify(mapStore.viewPoints),
-	() => {
-		console.log("[watch] viewPoints", mapStore.viewPoints);
-		clearLifeArea();
-		if (mapStore.viewPoints?.length > 0) {
-			drawLifeArea();
-		}
-	}
-);
-
 const selectedIndexs = ref([]);
 
 function handleDataSelection(index) {
@@ -188,118 +165,119 @@ function handleDataSelection(index) {
 	console.log("setByLayer", props.map_config, selectedNames);
 }
 
-function loadAllPersonalMarkers() {
-	const stored = JSON.parse(localStorage.getItem("customMarkers") || "[]");
-	stored.forEach((item) => {
-		const el = document.createElement("div");
-		el.style.backgroundImage = `url('${item.icon}')`;
-		el.style.backgroundSize = "cover";
-		el.style.width = "30px";
-		el.style.height = "30px";
-		el.style.borderRadius = "50%";
-		el.style.boxShadow = "0 0 5px rgba(0,0,0,0.5)";
-
-		const popupContent = document.createElement("div");
-		popupContent.style.fontSize = "14px";
-		popupContent.style.margin = "5px";
-		popupContent.style.width = "250px";
-
-		// ✅ 修正 HTML
-		const buttonId =
-			item.category === "important"
-				? `delete-${item.category}`
-				: `delete-${item.id}`;
-		popupContent.innerHTML = `
-			📍 <b>${item.name}</b><br/>
-			🗺️ ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}<br/>
-			<button
-				id="${buttonId}"
-				style="width: 100%; height: 2rem; color: #fff; border: none; border-radius: 5px;
-				background-color: #007bff; cursor: pointer; margin-top: 5px;">
-				刪除
-			</button>
-		`;
-
-		const popup = new mapboxgl.Popup({ offset: 30 }).setDOMContent(
-			popupContent
-		);
-
-		// ✅ 安全處理 DOM null 情況
-		const deleteBtn = popupContent.querySelector(`#${buttonId}`);
-		if (deleteBtn) {
-			if (item.category === "important") {
-				deleteBtn.addEventListener("click", () => {
-					deleteMarker(item.id, item.category);
-				});
-			} else {
-				deleteBtn.addEventListener("click", () => {
-					deleteMarker(item.id, item.category);
-				});
-			}
-		} else {
-			console.warn(`找不到按鈕 delete-${item.id}`);
-		}
-
-		const marker = new mapboxgl.Marker({ element: el })
-			.setLngLat([item.lng, item.lat])
-			.setPopup(popup)
-			.addTo(mapStore.map);
-
-		if (item.category === "important") {
-			mapStore.removePersonalMarker("important");
-			mapStore.addPersonalMarker(item.category, marker, item.name, item.lat, item.lng, item.category);
-		}else{
-			mapStore.addPersonalMarker(item.id, marker, item.name, item.lat, item.lng, item.category);
-		}
-	});
-}
-
-function removeAllPersonalMarkers() {
-	localStorage.removeItem("customMarkers");
-	mapStore.clearAllPersonalMarkers();
-	// 這裡假設不保留 mapStore.markers 參考，無法逐個 remove 就改為清空後刷新地圖
-	window.location.reload(); // 或重新 render 地圖
-}
-
-function deleteMarker(id, category) {
-	const storedMarkers = JSON.parse(
-		localStorage.getItem("customMarkers") || "[]"
-	);
-
-	// 根據 id 找到 index
-	if (category === "important") {
-		const index = storedMarkers.findIndex(
-			(marker) => marker.category === "important"
-		);
-		if (index !== -1) {
-			storedMarkers.splice(index, 1);
-			localStorage.setItem(
-				"customMarkers",
-				JSON.stringify(storedMarkers)
-			);
-
-			mapStore.removePersonalMarker(category);
-			return;
-		}
-	} else {
-		const index = storedMarkers.findIndex((marker) => marker.id === id);
-		if (index !== -1) {
-			storedMarkers.splice(index, 1);
-			localStorage.setItem(
-				"customMarkers",
-				JSON.stringify(storedMarkers)
-			);
-
-			mapStore.removePersonalMarker(id);
-		} else {
-			console.warn("未找到要刪除的標記");
-		}
-	}
-}
-
 const onSearch = async () => {
 	geocoder.query(searchText.value);
 };
+
+const drawDashedLine = (id, from, to) => {
+	const lineData = {
+		type: "Feature",
+		geometry: {
+			type: "LineString",
+			coordinates: [from, to],
+		},
+	};
+
+	mapStore.map.addSource(`${id}-dashed-line`, {
+		type: "geojson",
+		data: lineData,
+	});
+
+	// 加入虛線圖層
+	mapStore.map.addLayer({
+		id: `${id}-dashed-line-layer`,
+		type: "line",
+		source: `${id}-dashed-line`,
+		layout: {
+			"line-cap": "round",
+			"line-join": "round",
+		},
+		paint: {
+			"line-color": "#ff0000",
+			"line-width": 2,
+			"line-dasharray": [2, 4], // 2px 線段, 4px 間隔
+		},
+	});
+};
+
+const drawDistanceLabel = (id, from, to) => {
+	const dist = distance(from, to, { units: "kilometers" }).toFixed(2);
+
+	// 計算中點，作為標籤的位置
+	const mid = midpoint(from, to);
+
+	mapStore.map.addSource(`${id}-distance-label`, {
+		type: "geojson",
+		data: {
+			type: "FeatureCollection",
+			features: [
+				{
+					type: "Feature",
+					geometry: {
+						type: "Point",
+						coordinates: mid.geometry.coordinates,
+					},
+					properties: {
+						label: `${dist} km`,
+					},
+				},
+			],
+		},
+	});
+
+	mapStore.map.addLayer({
+		id: `${id}-distance-label-layer`,
+		type: "symbol",
+		source: `${id}-distance-label`,
+		layout: {
+			"text-field": ["get", "label"],
+			"text-font": ["Open Sans Bold"],
+			"text-size": 14,
+			"text-offset": [0, -1],
+			"text-anchor": "top",
+		},
+		paint: {
+			"text-color": "#FFFFFF",
+		},
+	});
+};
+
+const drawDashedLinesFromCenter = () => {
+	for (const [key, value] of Object.entries(mapStore.personalMarkerMap)) {
+		// Ignore important center
+		if (key === "important") continue;
+
+		console.log("[drawDashedLinesFromCenter]", key);
+		const from = [
+			mapStore.personalMarkerMap["important"].lng,
+			mapStore.personalMarkerMap["important"].lat,
+		];
+		const to = [value.lng, value.lat];
+		drawDashedLine(key, from, to);
+		drawDistanceLabel(key, from, to);
+	}
+};
+
+onMounted(() => {
+	console.log("[onMounted] personalMarkerMap", mapStore.personalMarkerMap);
+	clearLifeArea();
+	if (mapStore.personalMarkerMap["important"]) {
+		drawLifeArea();
+		drawDashedLinesFromCenter();
+	}
+});
+
+watch(
+	() => mapStore?.personalMarkerMap,
+	() => {
+		console.log("[watch] personalMarkerMap", mapStore.personalMarkerMap);
+		clearLifeArea();
+		if (mapStore.personalMarkerMap["important"]) {
+			drawLifeArea();
+			drawDashedLinesFromCenter();
+		}
+	}
+);
 </script>
 
 <template>

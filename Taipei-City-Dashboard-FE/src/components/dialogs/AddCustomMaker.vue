@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import mapboxgl from "mapbox-gl";
 import { useMapStore } from "../../store/mapStore";
 import { useDialogStore } from "../../store/dialogStore";
@@ -161,6 +161,11 @@ function deleteMarker(id, category) {
 		}
 	}
 }
+
+onMounted(()=> {
+	loadAllPersonalMarkers();
+})
+
 </script>
 
 <template>
