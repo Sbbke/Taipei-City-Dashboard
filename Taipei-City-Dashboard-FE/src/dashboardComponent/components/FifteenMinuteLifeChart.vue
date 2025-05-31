@@ -55,7 +55,7 @@ const geocoder = new MapboxGeocoder({
 	accessToken: mapboxgl.accessToken ?? MAPBOXTOKEN,
 	mapboxgl: mapboxgl,
 });
-mapStore.map.addControl(geocoder);
+mapStore.map?.addControl(geocoder);
 
 function returnIcon(name) {
 	switch (name) {
@@ -261,6 +261,8 @@ const drawDashedLinesFromCenter = () => {
 };
 
 onMounted(() => {
+	if (!mapStore.map) return;
+
 	console.log("[onMounted] personalMarkerMap", mapStore.personalMarkerMap);
 	clearLifeArea();
 	if (mapStore.personalMarkerMap["important"]) {
@@ -272,6 +274,8 @@ onMounted(() => {
 watch(
 	() => mapStore?.personalMarkerMap,
 	() => {
+		if (!mapStore.map) return;
+
 		console.log("[watch] personalMarkerMap", mapStore.personalMarkerMap);
 		clearLifeArea();
 		if (mapStore.personalMarkerMap["important"]) {
@@ -283,71 +287,77 @@ watch(
 </script>
 
 <template>
-	<div
-		v-if="authStore.user?.user_id && isCurrentPageMapView"
-		class="fifteen-minute-life"
-	>
-		<div class="container">
-			<input
-				class="address-input"
-				type="text"
-				placeholder="搜尋想創建地標"
-				@keydown.enter="onSearch"
-				v-model="searchText"
-			/>
-		</div>
-		<div class="container">
-			<button
-				v-if="mapStore.tempMarkerCoordinates"
-				:disabled="!mapStore.tempMarkerCoordinates"
-				class="address-button"
-				@click="dialogStore.showDialog('addCustomMarker')"
-			>
-				建立個人臨時地標
-			</button>
-		</div>
-	</div>
-	<div class="maplegend">
-		<div class="maplegend-legend">
-			<button
-				v-for="(item, index) in series"
-				:key="item.name"
-				:class="{
-					'maplegend-legend-item': true,
-					'maplegend-filter': map_filter_on && map_filter,
-					'maplegend-selected':
-						map_filter_on && selectedIndexs.includes(index),
-				}"
-				@click="handleDataSelection(index)"
-			>
+	<template v-if="mapStore.map">
+		<div
+			v-if="authStore.user?.user_id && isCurrentPageMapView"
+			class="fifteen-minute-life"
+		>
+			<div class="container">
 				<input
-					type="checkbox"
-					:checked="selectedIndexs.includes(index)"
-					@click.stop
-					readonly
+					class="address-input"
+					type="text"
+					placeholder="搜尋想創建地標"
+					@keydown.enter="onSearch"
+					v-model="searchText"
 				/>
-				<!-- Show different icons for different map types -->
-				<div
-					v-if="item.type !== 'symbol'"
-					:style="{
-						backgroundColor: `${chart_config.color[index]}`,
-						height: item.type === 'line' ? '0.4rem' : '1rem',
-						borderRadius: item.type === 'circle' ? '50%' : '2px',
-					}"
-				/>
-				<img v-else :src="returnIcon(item.icon)" />
-				<!-- If there is a value attached, show the value -->
-				<div v-if="item.value">
-					<h5>{{ item.name }}</h5>
-					<h6>{{ item.value }} {{ chart_config.unit }}</h6>
-				</div>
-				<div v-else>
-					<h6>{{ item.name }}</h6>
-				</div>
-			</button>
+			</div>
+			<div class="container">
+				<button
+					v-if="mapStore.tempMarkerCoordinates"
+					:disabled="!mapStore.tempMarkerCoordinates"
+					class="address-button"
+					@click="dialogStore.showDialog('addCustomMarker')"
+				>
+					建立個人臨時地標
+				</button>
+			</div>
 		</div>
-	</div>
-	<AddCustomMarker name="addCustomMarker" />
+		<div class="maplegend">
+			<div class="maplegend-legend">
+				<button
+					v-for="(item, index) in series"
+					:key="item.name"
+					:class="{
+						'maplegend-legend-item': true,
+						'maplegend-filter': map_filter_on && map_filter,
+						'maplegend-selected':
+							map_filter_on && selectedIndexs.includes(index),
+					}"
+					@click="handleDataSelection(index)"
+				>
+					<input
+						type="checkbox"
+						:checked="selectedIndexs.includes(index)"
+						@click.stop
+						readonly
+					/>
+					<!-- Show different icons for different map types -->
+					<div
+						v-if="item.type !== 'symbol'"
+						:style="{
+							backgroundColor: `${chart_config.color[index]}`,
+							height: item.type === 'line' ? '0.4rem' : '1rem',
+							borderRadius:
+								item.type === 'circle' ? '50%' : '2px',
+						}"
+					/>
+					<img v-else :src="returnIcon(item.icon)" />
+					<!-- If there is a value attached, show the value -->
+					<div v-if="item.value">
+						<h5>{{ item.name }}</h5>
+						<h6>{{ item.value }} {{ chart_config.unit }}</h6>
+					</div>
+					<div v-else>
+						<h6>{{ item.name }}</h6>
+					</div>
+				</button>
+			</div>
+		</div>
+		<AddCustomMarker name="addCustomMarker" />
+	</template>
+	<template v-else>
+		<div class="map-used-hint">地圖專用</div>
+	</template>
 </template>
 
 <style scoped lang="scss">
@@ -474,5 +484,12 @@ button {
 	grid-template-columns: auto auto 1fr;
 	gap: 8px;
 	align-items: center;
+}
+
+.map-used-hint {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100%;
 }
 </style>
