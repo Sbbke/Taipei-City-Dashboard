@@ -36,6 +36,8 @@ const searchText = ref("");
 const props = defineProps([
 	"chart_config",
 	"series",
+	"activeChart",
+	"activeCity",
 	"map_config",
 	"map_filter",
 	"map_filter_on",
@@ -162,7 +164,7 @@ function handleDataSelection(index) {
 		.map((item) => item.name);
 
 	emits("setByLayer", props.map_config, selectedNames);
-	console.log("setByLayer", props.map_config, selectedNames);
+	// console.log("setByLayer", props.map_config, selectedNames);
 }
 
 const onSearch = async () => {
@@ -391,7 +393,6 @@ button {
 			div:first-child,
 			img {
 				width: var(--font-ms);
-				margin-right: 0.75rem;
 			}
 
 			h5 {
@@ -466,5 +467,12 @@ button {
 	&:hover {
 		background-color: #0056b3;
 	}
+}
+
+.maplegend-legend-item {
+	display: grid;
+	grid-template-columns: auto auto 1fr;
+	gap: 8px;
+	align-items: center;
 }
 </style>
