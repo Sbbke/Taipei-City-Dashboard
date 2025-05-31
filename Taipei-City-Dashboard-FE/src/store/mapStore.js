@@ -15,6 +15,7 @@ import { ArcLayer } from "@deck.gl/layers";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import axios from "axios";
 import http from "../router/axios.js";
+import { distance } from '@turf/turf';
 
 // Other Stores
 import { useAuthStore } from "./authStore";
@@ -343,6 +344,18 @@ export const useMapStore = defineStore("map", {
 		},
 		// 3-1. Add a local geojson as a source in mapbox
 		addGeojsonSource(map_config, data) {
+			if (this.tempMarkerCoordinates) {
+				const center = [this.tempMarkerCoordinates.lng, this.tempMarkerCoordinates.lat]
+				data.features = data.features.filter(item => {
+					const dist = distance(
+						{ type: 'Point', coordinates: center },
+						{ type: 'Point', coordinates: item.geometry.coordinates },
+						{ units: 'kilometers' }
+					);
+					return dist <= 2;
+				});
+			}
+
 			if (!["voronoi", "isoline"].includes(map_config.type)) {
 				this.map.addSource(`${map_config.layerId}-source`, {
 					type: "geojson",

@@ -242,3 +242,8 @@ html .mapboxgl-popup .popup-for-pin {
 		color: white;
 	}
 }
+
+/* Hide geocoder search input */
+.mapboxgl-ctrl-geocoder {
+	display: none;
+}

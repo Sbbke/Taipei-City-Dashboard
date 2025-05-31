@@ -1,7 +1,7 @@
 <!-- Developed by Taipei Urban Intelligence Center 2023-2024-->
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import mapboxgl from "mapbox-gl";
 import bus from "../assets/map/bus.png";
 import metro from "../assets/map/metro.png";
@@ -22,12 +22,17 @@ import { useAuthStore } from "../../store/authStore";
 import { useMapStore } from "../../store/mapStore";
 import { useDialogStore } from "../../store/dialogStore";
 import AddCustomMarker from "../../components/dialogs/AddCustomMaker.vue";
+import { circle } from "@turf/turf";
+import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
+
+const MAPBOXTOKEN = import.meta.env.VITE_MAPBOXTOKEN;
 
 const authStore = useAuthStore();
 const dialogStore = useDialogStore();
 const route = useRoute();
 const mapStore = useMapStore();
 const isCurrentPageMapView = computed(() => route.name === "mapview");
+const searchText = ref("");
 
 const props = defineProps([
 	"chart_config",
@@ -47,6 +52,12 @@ const emits = defineEmits([
 
 loadAllPersonalMarkers();
 // removeAllPersonalMarkers();
+
+const geocoder = new MapboxGeocoder({
+	accessToken: mapboxgl.accessToken ?? MAPBOXTOKEN,
+	mapboxgl: mapboxgl,
+});
+mapStore.map.addControl(geocoder);
 
 function returnIcon(name) {
 	switch (name) {
@@ -83,6 +94,82 @@ function returnIcon(name) {
 	}
 }
 
+const getLifeAreaData = () => {
+	const center = [
+		mapStore.viewPoints[0].center_x,
+		mapStore.viewPoints[0].center_y,
+	];
+	// console.log("center",center)
+	const area = circle(center, 2, {
+		steps: 64,
+		units: "kilometers",
+	});
+	console.log("area", area);
+	return area;
+};
+
+const clearLifeArea = () => {
+	mapStore.map.getSource("life-area")?.setData({
+		type: "FeatureCollection",
+		features: [],
+	});
+};
+
+const drawLifeArea = () => {
+	if (!mapStore.map.getSource("life-area")) {
+		console.log("[init]", mapStore.map.getSource("life-area"));
+		// 加入圖層
+		mapStore.map.addSource("life-area", {
+			type: "geojson",
+			data: getLifeAreaData(),
+		});
+
+		mapStore.map.addLayer({
+			id: "life-area-fill",
+			type: "fill",
+			source: "life-area",
+			layout: {},
+			paint: {
+				"fill-color": "#0000ff",
+				"fill-opacity": 0.3,
+			},
+		});
+
+		mapStore.map.addLayer({
+			id: "life-area-outline",
+			type: "line",
+			source: "life-area",
+			layout: {},
+			paint: {
+				"line-color": "#0000ff",
+				"line-width": 2,
+			},
+		});
+	} else {
+		console.log("[Refresh] life area");
+		mapStore.map.getSource("life-area").setData(getLifeAreaData());
+	}
+};
+
+onMounted(() => {
+	console.log("[onMounted] viewPoints", mapStore.viewPoints);
+	clearLifeArea();
+	if (mapStore.viewPoints?.length > 0) {
+		drawLifeArea();
+	}
+});
+
+watch(
+	() => JSON.stringify(mapStore.viewPoints),
+	() => {
+		console.log("[watch] viewPoints", mapStore.viewPoints);
+		clearLifeArea();
+		if (mapStore.viewPoints?.length > 0) {
+			drawLifeArea();
+		}
+	}
+);
+
 const selectedIndexs = ref([]);
 
 function handleDataSelection(index) {
@@ -118,7 +205,10 @@ function loadAllPersonalMarkers() {
 		popupContent.style.width = "250px";
 
 		// ✅ 修正 HTML
-		const buttonId = item.category === "important" ? `delete-${item.category}` : `delete-${item.id}`;
+		const buttonId =
+			item.category === "important"
+				? `delete-${item.category}`
+				: `delete-${item.id}`;
 		popupContent.innerHTML = `
 			📍 <b>${item.name}</b><br/>
 			🗺️ ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}<br/>
@@ -130,12 +220,14 @@ function loadAllPersonalMarkers() {
 			</button>
 		`;
 
-		const popup = new mapboxgl.Popup({ offset: 30 }).setDOMContent(popupContent);
+		const popup = new mapboxgl.Popup({ offset: 30 }).setDOMContent(
+			popupContent
+		);
 
 		// ✅ 安全處理 DOM null 情況
 		const deleteBtn = popupContent.querySelector(`#${buttonId}`);
 		if (deleteBtn) {
-			if(item.category === "important") {
+			if (item.category === "important") {
 				deleteBtn.addEventListener("click", () => {
 					deleteMarker(item.id, item.category);
 				});
@@ -153,7 +245,7 @@ function loadAllPersonalMarkers() {
 			.setPopup(popup)
 			.addTo(mapStore.map);
 
-		if(item.category === "important") {
+		if (item.category === "important") {
 			mapStore.removePersonalMarker("important");
 			mapStore.addPersonalMarker(item.category, marker, item.name, item.lat, item.lng, item.category);
 		}else{
@@ -170,23 +262,33 @@ function removeAllPersonalMarkers() {
 }
 
 function deleteMarker(id, category) {
-	const storedMarkers = JSON.parse(localStorage.getItem("customMarkers") || "[]");
+	const storedMarkers = JSON.parse(
+		localStorage.getItem("customMarkers") || "[]"
+	);
 
 	// 根據 id 找到 index
 	if (category === "important") {
-		const index = storedMarkers.findIndex(marker => marker.category === "important");
+		const index = storedMarkers.findIndex(
+			(marker) => marker.category === "important"
+		);
 		if (index !== -1) {
 			storedMarkers.splice(index, 1);
-			localStorage.setItem("customMarkers", JSON.stringify(storedMarkers));
+			localStorage.setItem(
+				"customMarkers",
+				JSON.stringify(storedMarkers)
+			);
 
 			mapStore.removePersonalMarker(category);
 			return;
 		}
-	}else{
-		const index = storedMarkers.findIndex(marker => marker.id === id);
+	} else {
+		const index = storedMarkers.findIndex((marker) => marker.id === id);
 		if (index !== -1) {
 			storedMarkers.splice(index, 1);
-			localStorage.setItem("customMarkers", JSON.stringify(storedMarkers));
+			localStorage.setItem(
+				"customMarkers",
+				JSON.stringify(storedMarkers)
+			);
 
 			mapStore.removePersonalMarker(id);
 		} else {
@@ -194,15 +296,24 @@ function deleteMarker(id, category) {
 		}
 	}
 }
+
+const onSearch = async () => {
+	geocoder.query(searchText.value);
+};
 </script>
 
 <template>
-	<div v-if="authStore.user?.user_id && isCurrentPageMapView" class="fifteen-minute-life">
+	<div
+		v-if="authStore.user?.user_id && isCurrentPageMapView"
+		class="fifteen-minute-life"
+	>
 		<div class="container">
 			<input
 				class="address-input"
 				type="text"
 				placeholder="搜尋想創建地標"
+				@keydown.enter="onSearch"
+				v-model="searchText"
 			/>
 		</div>
 		<div class="container">
@@ -211,7 +322,9 @@ function deleteMarker(id, category) {
 				:disabled="!mapStore.tempMarkerCoordinates"
 				class="address-button"
 				@click="dialogStore.showDialog('addCustomMarker')"
-			>建立個人臨時地標</button>
+			>
+				建立個人臨時地標
+			</button>
 		</div>
 	</div>
 	<div class="maplegend">
@@ -346,7 +459,7 @@ button {
 	height: 100%;
 }
 
-.address-input{
+.address-input {
 	width: 100%;
 	margin: 5px auto;
 	height: 2rem;
@@ -358,8 +471,8 @@ button {
 }
 
 .address-input::placeholder {
-  color: #ccc;
-  opacity: 1;
+	color: #ccc;
+	opacity: 1;
 }
 
 .address-button {
