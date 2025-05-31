@@ -72,20 +72,34 @@ export const useMapStore = defineStore("map", {
 		personalMarkerMap: {},
 	}),
 	actions: {
-		addPersonalMarker(id, marker) {
+		addPersonalMarker(id, marker, name, lat, lng, catalog) {
 			if (!this.personalMarkerMap[id]) {
-				this.personalMarkerMap[id] = marker;
+				this.personalMarkerMap[id] = {
+					id,
+					marker,
+					name,
+					lat,
+					lng,
+					catalog
+				};
 			}
 		},
 		removePersonalMarker(id) {
-			if (this.personalMarkerMap[id]) {
-				this.personalMarkerMap[id].remove();
+			const markerObj = this.personalMarkerMap[id];
+			if (markerObj) {
+				markerObj.marker?.remove(); // Mapbox Marker 實體才有 remove 方法
+				// 如果其他是 DOM 元素或其他物件，也做檢查
+				markerObj.name?.remove?.();
+				markerObj.lat?.remove?.();
+				markerObj.lng?.remove?.();
+				markerObj.catalog?.remove?.();
 				delete this.personalMarkerMap[id];
 			}
 		},
 		clearAllPersonalMarkers() {
-			Object.values(this.personalMarkerMap).forEach(marker => marker.remove());
-			this.personalMarkerMap = {};
+			for (const id in this.personalMarkerMap) {
+				this.removePersonalMarker(id);
+			}
 		},
 		/* Initialize Mapbox */
 		// 1. Creates the mapbox instance and passes in initial configs

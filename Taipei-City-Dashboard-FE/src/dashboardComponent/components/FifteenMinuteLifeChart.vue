@@ -155,9 +155,9 @@ function loadAllPersonalMarkers() {
 
 		if(item.category === "important") {
 			mapStore.removePersonalMarker("important");
-			mapStore.addPersonalMarker(item.category, marker);
+			mapStore.addPersonalMarker(item.category, marker, item.name, item.lat, item.lng, item.category);
 		}else{
-			mapStore.addPersonalMarker(item.id, marker);
+			mapStore.addPersonalMarker(item.id, marker, item.name, item.lat, item.lng, item.category);
 		}
 	});
 }
