@@ -20,7 +20,7 @@ import RadarChart from "./components/RadarChart.vue";
 import TimelineSeparateChart from "./components/TimelineSeparateChart.vue";
 import TimelineStackedChart from "./components/TimelineStackedChart.vue";
 import MapLegend from "./components/MapLegend.vue";
-import CityChart from "./components/CityChart.vue";
+import FifteenMinuteLifeChart from "./components/FifteenMinuteLifeChart.vue";
 
 import MetroChart from "./components/MetroChart.vue";
 import HeatmapChart from "./components/HeatmapChart.vue";
@@ -191,8 +191,8 @@ function returnChartComponent(name, svg) {
 		return svg ? BarChartSvg : BarChart;
 	case "MapLegend":
 		return svg ? MapLegendSvg : MapLegend;
-	case "CityChart":
-		return svg ? MapLegendSvg: CityChart;
+	case "FifteenMinuteLifeChart":
+		return svg ? MapLegendSvg: FifteenMinuteLifeChart;
 	case "MetroChart":
 		return svg ? MetroChartSvg : MetroChart;
 	case "TimelineSeparateChart":

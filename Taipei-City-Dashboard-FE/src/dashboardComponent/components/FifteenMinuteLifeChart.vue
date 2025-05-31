@@ -1,7 +1,8 @@
 <!-- Developed by Taipei Urban Intelligence Center 2023-2024-->
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
+import mapboxgl from "mapbox-gl";
 import bus from "../assets/map/bus.png";
 import metro from "../assets/map/metro.png";
 import triangle_green from "../assets/map/triangle_green.png";
@@ -16,6 +17,16 @@ import hospital from "../assets/map/hospital.png";
 import rental from "../assets/map/rental.png";
 import library from "../assets/map/library.png";
 import shopping_district from "../assets/map/shopping_district.png";
+import { useRoute } from "vue-router";
+import { useAuthStore } from "../../store/authStore";
+import { useMapStore } from "../../store/mapStore";
+import { useDialogStore } from "../../store/dialogStore";
+
+const authStore = useAuthStore();
+const dialogStore = useDialogStore();
+const route = useRoute();
+const mapStore = useMapStore();
+const isCurrentPageMapView = computed(() => route.name === "mapview");
 
 const props = defineProps([
 	"chart_config",
@@ -32,6 +43,9 @@ const emits = defineEmits([
 	"fly",
 	"setByLayer",
 ]);
+
+loadAllPersonalMarkers();
+// removeAllPersonalMarkers();
 
 function returnIcon(name) {
 	switch (name) {
@@ -85,9 +99,85 @@ function handleDataSelection(index) {
 	emits("setByLayer", props.map_config, selectedNames);
 	console.log("setByLayer", props.map_config, selectedNames);
 }
+
+function loadAllPersonalMarkers() {
+	const stored = JSON.parse(localStorage.getItem("customMarkers") || "[]");
+	stored.forEach((item) => {
+		const el = document.createElement("div");
+		el.style.backgroundImage = `url('${item.icon}')`;
+		el.style.backgroundSize = "cover";
+		el.style.width = "30px";
+		el.style.height = "30px";
+		el.style.borderRadius = "50%";
+		el.style.boxShadow = "0 0 5px rgba(0,0,0,0.5)";
+
+		const popupContent = document.createElement("div");
+		popupContent.style.fontSize = "14px";
+		popupContent.style.margin = "5px";
+		popupContent.style.width = "250px";
+
+		popupContent.innerHTML = `
+		📍 <b>${item.name}</b><br/>
+		🗺️ ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}<br/>
+		<button style="width: 100%; height: 2rem; color: #fff; border: none; border-radius: 5px;
+    	background-color: #007bff; cursor: pointer;	margin-top: 5px;"> id="delete-${item.id}">刪除</button>
+		`;
+
+		const popup = new mapboxgl.Popup({ offset: 30 }).setDOMContent(popupContent);
+
+		popupContent.querySelector(`#delete-${item.id}`).addEventListener("click", () => {
+			deleteMarker(item.id);
+		});
+
+		new mapboxgl.Marker({ element: el })
+			.setLngLat([item.lng, item.lat])
+			.setPopup(popup)
+			.addTo(mapStore.map);
+	});
+}
+
+function removeAllPersonalMarkers() {
+	localStorage.removeItem("customMarkers");
+	// 這裡假設不保留 mapStore.markers 參考，無法逐個 remove 就改為清空後刷新地圖
+	window.location.reload(); // 或重新 render 地圖
+}
+
+function deleteMarker(id) {
+	const storedMarkers = JSON.parse(localStorage.getItem("customMarkers") || "[]");
+
+	// 根據 id 找到 index
+	const index = storedMarkers.findIndex(marker => marker.id === id);
+	if (index !== -1) {
+		storedMarkers.splice(index, 1);
+		localStorage.setItem("customMarkers", JSON.stringify(storedMarkers));
+		window.location.reload(); // 可選，或手動 remove Marker
+	} else {
+		console.warn("未找到要刪除的標記");
+	}
+}
 </script>
 
 <template>
+	<div v-if="authStore.user?.user_id && isCurrentPageMapView" class="fifteen-minute-life">
+		<div class="container">
+			<input
+				class="address-input"
+				type="text"
+				placeholder="搜尋想創建地標"
+			/>
+		</div>
+		<div class="container">
+			<button 
+				class="address-button"
+				style="margin-right: 1px;"
+			>建立15分鐘生活圈</button>
+			<button
+				class="address-button"
+				style="margin-left: 1px;"
+				@click="dialogStore.showDialog('addCustomMarker')"
+			>建立個人臨時地標</button>
+		</div>
+	</div>
 	<div class="maplegend">
 		<div class="maplegend-legend">
 			<button
@@ -128,6 +218,7 @@ function handleDataSelection(index) {
 			</button>
 		</div>
 	</div>
+	<AddCustomMarker name="addCustomMarker" />
 </template>
 
 <style scoped lang="scss">
@@ -143,6 +234,7 @@ button {
 	border: none;
 	background-color: transparent;
 }
+
 .maplegend {
 	width: 100%;
 	height: 100%;
@@ -201,6 +293,51 @@ button {
 
 	&-selected {
 		box-shadow: 0px 0px 5px black;
+	}
+}
+
+.fifteen-minute-life {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.container {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.address-input{
+	width: 100%;
+	margin: 5px auto;
+	height: 2rem;
+	color: #fff;
+	border: 1px solid #fff;
+	border-radius: 5px;
+	background-color: #000;
+	padding: 0 0.5rem;
+}
+
+.address-input::placeholder {
+  color: #ccc;
+  opacity: 1;
+}
+
+.address-button {
+	width: 50%;
+	height: 2rem;
+	color: #fff;
+	border: none;
+	border-radius: 5px;
+	background-color: #007bff;
+	cursor: pointer;
+	transition: background-color 0.3s;
+
+	&:hover {
+		background-color: #0056b3;
 	}
 }
 </style>
