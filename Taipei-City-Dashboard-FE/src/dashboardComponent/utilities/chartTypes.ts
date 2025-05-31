@@ -25,4 +25,5 @@ export const chartTypes: chartType = {
 	TextUnitChart: "文字數值圖", // V
 	FifteenMinuteLifeChart: "15分鐘城市",
 	ActivityChart: "活動商圈一日遊",
+	ScatterPlot: "散佈圖", // V
 };

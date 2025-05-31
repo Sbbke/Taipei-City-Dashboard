@@ -31,6 +31,7 @@ import IconPercentChart from "./components/IconPercentChart.vue";
 import IndicatorChart from "./components/IndicatorChart.vue";
 import TextUnitChart from "./components/TextUnitChart.vue";
 import ActivityChart from "./components/ActivityChart.vue";
+import ScatterPlot from "./components/ScatterPlot.vue";
 
 import MapLegendSvg from "./assets/chart/MapLegend.svg";
 import DistrictChartSvg from "./assets/chart/DistrictChart.svg";
@@ -228,6 +229,8 @@ function returnChartComponent(name, svg) {
 		return svg ? TextUnitChartSvg : TextUnitChart;
 	case "ActivityChart":
 		return svg ? MapLegendSvg : ActivityChart;
+	case "ScatterPlot":
+		return svg ? TimelineSeparateChartSvg : ScatterPlot;
 	default: 
 		return svg ? MapLegendSvg : MapLegend;
 	}
