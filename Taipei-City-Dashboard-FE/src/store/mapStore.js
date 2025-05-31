@@ -69,8 +69,24 @@ export const useMapStore = defineStore("map", {
 		tempMarkerCoordinates: null,
 		// Store the user's current location,
 		userLocation: { latitude: null, longitude: null },
+		personalMarkerMap: {},
 	}),
 	actions: {
+		addPersonalMarker(id, marker) {
+			if (!this.personalMarkerMap[id]) {
+				this.personalMarkerMap[id] = marker;
+			}
+		},
+		removePersonalMarker(id) {
+			if (this.personalMarkerMap[id]) {
+				this.personalMarkerMap[id].remove();
+				delete this.personalMarkerMap[id];
+			}
+		},
+		clearAllPersonalMarkers() {
+			Object.values(this.personalMarkerMap).forEach(marker => marker.remove());
+			this.personalMarkerMap = {};
+		},
 		/* Initialize Mapbox */
 		// 1. Creates the mapbox instance and passes in initial configs
 		initializeMapBox() {

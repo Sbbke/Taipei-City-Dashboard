@@ -21,6 +21,7 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from "../../store/authStore";
 import { useMapStore } from "../../store/mapStore";
 import { useDialogStore } from "../../store/dialogStore";
+import AddCustomMarker from "../../components/dialogs/AddCustomMaker.vue";
 
 const authStore = useAuthStore();
 const dialogStore = useDialogStore();
@@ -116,43 +117,81 @@ function loadAllPersonalMarkers() {
 		popupContent.style.margin = "5px";
 		popupContent.style.width = "250px";
 
+		// ✅ 修正 HTML
+		const buttonId = item.category === "important" ? `delete-${item.category}` : `delete-${item.id}`;
 		popupContent.innerHTML = `
-		📍 <b>${item.name}</b><br/>
-		🗺️ ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}<br/>
-		<button style="width: 100%; height: 2rem; color: #fff; border: none; border-radius: 5px;
-    	background-color: #007bff; cursor: pointer;	margin-top: 5px;"> id="delete-${item.id}">刪除</button>
+			📍 <b>${item.name}</b><br/>
+			🗺️ ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}<br/>
+			<button
+				id="${buttonId}"
+				style="width: 100%; height: 2rem; color: #fff; border: none; border-radius: 5px;
+				background-color: #007bff; cursor: pointer; margin-top: 5px;">
+				刪除
+			</button>
 		`;
 
 		const popup = new mapboxgl.Popup({ offset: 30 }).setDOMContent(popupContent);
 
-		popupContent.querySelector(`#delete-${item.id}`).addEventListener("click", () => {
-			deleteMarker(item.id);
-		});
+		// ✅ 安全處理 DOM null 情況
+		const deleteBtn = popupContent.querySelector(`#${buttonId}`);
+		if (deleteBtn) {
+			if(item.category === "important") {
+				deleteBtn.addEventListener("click", () => {
+					deleteMarker(item.id, item.category);
+				});
+			} else {
+				deleteBtn.addEventListener("click", () => {
+					deleteMarker(item.id, item.category);
+				});
+			}
+		} else {
+			console.warn(`找不到按鈕 delete-${item.id}`);
+		}
 
-		new mapboxgl.Marker({ element: el })
+		const marker = new mapboxgl.Marker({ element: el })
 			.setLngLat([item.lng, item.lat])
 			.setPopup(popup)
 			.addTo(mapStore.map);
+
+		if(item.category === "important") {
+			mapStore.removePersonalMarker("important");
+			mapStore.addPersonalMarker(item.category, marker);
+		}else{
+			mapStore.addPersonalMarker(item.id, marker);
+		}
 	});
 }
 
 function removeAllPersonalMarkers() {
 	localStorage.removeItem("customMarkers");
+	mapStore.clearAllPersonalMarkers();
 	// 這裡假設不保留 mapStore.markers 參考，無法逐個 remove 就改為清空後刷新地圖
 	window.location.reload(); // 或重新 render 地圖
 }
 
-function deleteMarker(id) {
+function deleteMarker(id, category) {
 	const storedMarkers = JSON.parse(localStorage.getItem("customMarkers") || "[]");
 
 	// 根據 id 找到 index
-	const index = storedMarkers.findIndex(marker => marker.id === id);
-	if (index !== -1) {
-		storedMarkers.splice(index, 1);
-		localStorage.setItem("customMarkers", JSON.stringify(storedMarkers));
-		window.location.reload(); // 可選，或手動 remove Marker
-	} else {
-		console.warn("未找到要刪除的標記");
+	if (category === "important") {
+		const index = storedMarkers.findIndex(marker => marker.category === "important");
+		if (index !== -1) {
+			storedMarkers.splice(index, 1);
+			localStorage.setItem("customMarkers", JSON.stringify(storedMarkers));
+
+			mapStore.removePersonalMarker(category);
+			return;
+		}
+	}else{
+		const index = storedMarkers.findIndex(marker => marker.id === id);
+		if (index !== -1) {
+			storedMarkers.splice(index, 1);
+			localStorage.setItem("customMarkers", JSON.stringify(storedMarkers));
+
+			mapStore.removePersonalMarker(id);
+		} else {
+			console.warn("未找到要刪除的標記");
+		}
 	}
 }
 </script>
@@ -167,13 +206,10 @@ function deleteMarker(id) {
 			/>
 		</div>
 		<div class="container">
-			<button 
-				class="address-button"
-				style="margin-right: 1px;"
-			>建立15分鐘生活圈</button>
 			<button
+				v-if="mapStore.tempMarkerCoordinates"
+				:disabled="!mapStore.tempMarkerCoordinates"
 				class="address-button"
-				style="margin-left: 1px;"
 				@click="dialogStore.showDialog('addCustomMarker')"
 			>建立個人臨時地標</button>
 		</div>
@@ -327,7 +363,7 @@ button {
 }
 
 .address-button {
-	width: 50%;
+	width: 100%;
 	height: 2rem;
 	color: #fff;
 	border: none;
